@@ -50,7 +50,6 @@ async function run() {
     });
 
     // user registration related api
-
     app.post("/registrations", async (req, res) => {
       const registration = req.body;
       const { marathonId, email } = registration;
@@ -62,12 +61,10 @@ async function run() {
           .findOne({ marathonId, email });
 
         if (existingRegistration) {
-          return res
-            .status(400)
-            .send({
-              success: false,
-              message: "You have already registered for this marathon.",
-            });
+          return res.status(400).send({
+            success: false,
+            message: "You have already registered for this marathon.",
+          });
         }
 
         const result = await client
@@ -86,6 +83,49 @@ async function run() {
         res.send({ success: true, result, updateResult });
       } catch (error) {
         res.status(500).send({ success: false, error: "Failed to register" });
+      }
+    });
+
+    app.get("/registrations/:email", async (req, res) => {
+      const email = req.params.email;
+
+      try {
+        const registrations = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .find({ email })
+          .toArray();
+
+        res.send(registrations);
+      } catch (error) {
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to fetch registrations" });
+      }
+    });
+
+    // query parameter
+    app.get("/registrations", async (req, res) => {
+      const { email } = req.query; // Get email from query parameters
+
+      if (!email) {
+        return res
+          .status(400)
+          .send({ success: false, message: "Email is required" });
+      }
+
+      try {
+        const registrations = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .find({ email })
+          .toArray();
+
+        res.send(registrations);
+      } catch (error) {
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to fetch registrations" });
       }
     });
 
