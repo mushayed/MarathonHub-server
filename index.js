@@ -49,6 +49,46 @@ async function run() {
       res.send(result);
     });
 
+    // user registration related api
+
+    app.post("/registrations", async (req, res) => {
+      const registration = req.body;
+      const { marathonId, email } = registration;
+
+      try {
+        const existingRegistration = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .findOne({ marathonId, email });
+
+        if (existingRegistration) {
+          return res
+            .status(400)
+            .send({
+              success: false,
+              message: "You have already registered for this marathon.",
+            });
+        }
+
+        const result = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .insertOne(registration);
+
+        const updateResult = await client
+          .db("MarathonHubDB")
+          .collection("marathons")
+          .updateOne(
+            { _id: new ObjectId(marathonId) },
+            { $inc: { totalRegistrationCount: 1 } }
+          );
+
+        res.send({ success: true, result, updateResult });
+      } catch (error) {
+        res.status(500).send({ success: false, error: "Failed to register" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
