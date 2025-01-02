@@ -106,7 +106,7 @@ async function run() {
 
     // query parameter
     app.get("/registrations", async (req, res) => {
-      const { email } = req.query; // Get email from query parameters
+      const { email } = req.query;
 
       if (!email) {
         return res
@@ -126,6 +126,95 @@ async function run() {
         res
           .status(500)
           .send({ success: false, message: "Failed to fetch registrations" });
+      }
+    });
+
+    // Update registration by ID
+    app.put("/registrations/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateData = req.body;
+
+      try {
+        const result = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "Registration not found or no changes made",
+          });
+        }
+
+        res.send({
+          success: true,
+          message: "Registration updated successfully",
+        });
+      } catch (error) {
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to update registration" });
+      }
+    });
+
+    // Delete registration by ID
+    app.delete("/registrations/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        // Find the registration to get the marathonId
+        const registration = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .findOne({ _id: new ObjectId(id) });
+
+        if (!registration) {
+          return res
+            .status(404)
+            .send({ success: false, message: "Registration not found" });
+        }
+
+        const marathonId = registration.marathonId;
+
+        // Delete the registration
+        const result = await client
+          .db("MarathonHubDB")
+          .collection("registrations")
+          .deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res
+            .status(404)
+            .send({ success: false, message: "Failed to delete registration" });
+        }
+
+        // Decrease the totalRegistrationCount in the marathon document
+        const updateResult = await client
+          .db("MarathonHubDB")
+          .collection("marathons")
+          .updateOne(
+            { _id: new ObjectId(marathonId) },
+            { $inc: { totalRegistrationCount: -1 } }
+          );
+
+        if (updateResult.modifiedCount === 0) {
+          return res.send({
+            success: true,
+            message: "Registration deleted, but marathon count not updated",
+          });
+        }
+
+        res.send({
+          success: true,
+          message: "Registration deleted successfully",
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({
+          success: false,
+          message: "Failed to delete registration",
+        });
       }
     });
 
