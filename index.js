@@ -218,6 +218,85 @@ async function run() {
       }
     });
 
+    // Fetch marathons created by the logged-in user
+    app.get("/my-marathons", async (req, res) => {
+      const { email } = req.query;
+
+      if (!email) {
+        return res
+          .status(400)
+          .send({ success: false, message: "User email is required" });
+      }
+
+      try {
+        const marathons = await client
+          .db("MarathonHubDB")
+          .collection("marathons")
+          .find({ email: email })
+          .toArray();
+
+        res.send({ success: true, marathons });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to fetch marathons" });
+      }
+    });
+
+    // Update marathon by ID
+    app.put("/marathons/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateData = req.body;
+
+      try {
+        const result = await client
+          .db("MarathonHubDB")
+          .collection("marathons")
+          .updateOne({ _id: new ObjectId(id) }, { $set: updateData });
+
+        if (result.modifiedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "Marathon not found or no changes made",
+          });
+        }
+
+        res.send({ success: true, message: "Marathon updated successfully" });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to update marathon" });
+      }
+    });
+
+    // Delete marathon by ID
+    app.delete("/marathons/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const result = await client
+          .db("MarathonHubDB")
+          .collection("marathons")
+          .deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({
+            success: false,
+            message: "Marathon not found",
+          });
+        }
+
+        res.send({ success: true, message: "Marathon deleted successfully" });
+      } catch (error) {
+        console.error(error);
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to delete marathon" });
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
