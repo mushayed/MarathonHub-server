@@ -104,9 +104,9 @@ async function run() {
       }
     });
 
-    // query parameter
+    // query parameter and search
     app.get("/registrations", async (req, res) => {
-      const { email } = req.query;
+      const { email, search } = req.query;
 
       if (!email) {
         return res
@@ -115,10 +115,16 @@ async function run() {
       }
 
       try {
+        const query = { email };
+
+        if (search) {
+          query.title = { $regex: search, $options: "i" }; 
+        }
+
         const registrations = await client
           .db("MarathonHubDB")
           .collection("registrations")
-          .find({ email })
+          .find(query)
           .toArray();
 
         res.send(registrations);
