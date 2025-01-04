@@ -37,7 +37,10 @@ async function run() {
     });
 
     app.get("/marathons", async (req, res) => {
-      const cursor = marathonsCollection.find();
+      const sort = req.query.sort || "asc"; 
+      const sortOrder = sort === "desc" ? -1 : 1; 
+
+      const cursor = marathonsCollection.find().sort({ createdAt: sortOrder });
       const result = await cursor.toArray();
       res.send(result);
     });
@@ -118,7 +121,7 @@ async function run() {
         const query = { email };
 
         if (search) {
-          query.title = { $regex: search, $options: "i" }; 
+          query.title = { $regex: search, $options: "i" };
         }
 
         const registrations = await client
