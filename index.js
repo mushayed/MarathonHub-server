@@ -37,8 +37,8 @@ async function run() {
     });
 
     app.get("/marathons", async (req, res) => {
-      const sort = req.query.sort || "asc"; 
-      const sortOrder = sort === "desc" ? -1 : 1; 
+      const sort = req.query.sort || "asc";
+      const sortOrder = sort === "desc" ? -1 : 1;
 
       const cursor = marathonsCollection.find().sort({ createdAt: sortOrder });
       const result = await cursor.toArray();
@@ -50,6 +50,33 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await marathonsCollection.findOne(query);
       res.send(result);
+    });
+
+    app.get("/random-marathons", async (req, res) => {
+      try {
+        const marathons = await marathonsCollection.find().limit(6).toArray();
+        res.json(marathons);
+      } catch (err) {
+        console.error("Error fetching marathons:", err);
+        res.status(500).send("Server error");
+      }
+    });
+
+    app.get("/upcoming-marathons", async (req, res) => {
+      try {
+        const currentDate = new Date().toISOString();
+
+        const marathons = await marathonsCollection
+          .find({ startRegistrationDate: { $gte: currentDate } }) 
+          .sort({ startRegistrationDate: 1 })
+          .limit(6) 
+          .toArray();
+
+        res.json(marathons); 
+      } catch (err) {
+        console.error("Error fetching upcoming marathons:", err);
+        res.status(500).send("Server error");
+      }
     });
 
     // user registration related api
