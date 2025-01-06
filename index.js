@@ -1,13 +1,44 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", 
+      "https://marathon-hub-d6162.web.app",
+      "https://marathon-hub-d6162.firebaseapp.com"
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+
+  if(!token) {
+    return res.status(401).send({message: 'unauthorized access'});
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if(err) {
+      return res.status(401).send({message: 'unauthorized access'});
+    }
+
+    req.user = decoded;
+
+    next();
+  })
+}
+
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.bnuku.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -23,11 +54,37 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
     const marathonsCollection = client
       .db("MarathonHubDB")
       .collection("marathons");
+
+    // auth related api
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
+
+    app.post("/logout", (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    });
 
     // marathons related api
     app.post("/marathons", async (req, res) => {
@@ -36,7 +93,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/marathons", async (req, res) => {
+    app.get("/marathons", verifyToken, async (req, res) => {
       const sort = req.query.sort || "asc";
       const sortOrder = sort === "desc" ? -1 : 1;
 
@@ -45,7 +102,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/marathons/:id", async (req, res) => {
+    app.get("/marathons/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await marathonsCollection.findOne(query);
@@ -67,12 +124,12 @@ async function run() {
         const currentDate = new Date().toISOString();
 
         const marathons = await marathonsCollection
-          .find({ startRegistrationDate: { $gte: currentDate } }) 
+          .find({ startRegistrationDate: { $gte: currentDate } })
           .sort({ startRegistrationDate: 1 })
-          .limit(6) 
+          .limit(6)
           .toArray();
 
-        res.json(marathons); 
+        res.json(marathons);
       } catch (err) {
         console.error("Error fetching upcoming marathons:", err);
         res.status(500).send("Server error");
@@ -116,7 +173,7 @@ async function run() {
       }
     });
 
-    app.get("/registrations/:email", async (req, res) => {
+    app.get("/registrations/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
 
       try {
@@ -135,7 +192,7 @@ async function run() {
     });
 
     // query parameter and search
-    app.get("/registrations", async (req, res) => {
+    app.get("/registrations", verifyToken, async (req, res) => {
       const { email, search } = req.query;
 
       if (!email) {
@@ -143,6 +200,11 @@ async function run() {
           .status(400)
           .send({ success: false, message: "Email is required" });
       }
+
+      if(req.user.email !== req.query.email) {
+        return res.status(403).send({message: 'forbidden access'})
+      }
+
 
       try {
         const query = { email };
@@ -255,13 +317,17 @@ async function run() {
     });
 
     // Fetch marathons created by the logged-in user
-    app.get("/my-marathons", async (req, res) => {
+    app.get("/my-marathons", verifyToken, async (req, res) => {
       const { email } = req.query;
 
       if (!email) {
         return res
           .status(400)
           .send({ success: false, message: "User email is required" });
+      }
+
+      if(req.user.email !== req.query.email) {
+        return res.status(403).send({message: 'forbidden access'})
       }
 
       try {
@@ -334,10 +400,10 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
