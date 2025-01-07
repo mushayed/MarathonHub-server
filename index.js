@@ -24,6 +24,9 @@ app.use(cookieParser());
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
 
+  console.log(token);
+  
+
   if(!token) {
     return res.status(401).send({message: 'unauthorized access'});
   }
@@ -241,18 +244,18 @@ async function run() {
         if (result.modifiedCount === 0) {
           return res.status(404).send({
             success: false,
-            message: "Registration not found or no changes made",
+            message: "Registration not found",
           });
         }
 
         res.send({
           success: true,
-          message: "Registration updated successfully",
+          message: "Registration updated successfully!",
         });
       } catch (error) {
         res
           .status(500)
-          .send({ success: false, message: "Failed to update registration" });
+          .send({ success: false, message: "Failed to update registration!" });
       }
     });
 
@@ -270,7 +273,7 @@ async function run() {
         if (!registration) {
           return res
             .status(404)
-            .send({ success: false, message: "Registration not found" });
+            .send({ success: false, message: "Registration not found!" });
         }
 
         const marathonId = registration.marathonId;
@@ -284,7 +287,7 @@ async function run() {
         if (result.deletedCount === 0) {
           return res
             .status(404)
-            .send({ success: false, message: "Failed to delete registration" });
+            .send({ success: false, message: "Failed to delete registration!" });
         }
 
         // Decrease the totalRegistrationCount in the marathon document
@@ -299,19 +302,19 @@ async function run() {
         if (updateResult.modifiedCount === 0) {
           return res.send({
             success: true,
-            message: "Registration deleted, but marathon count not updated",
+            message: "Registration deleted but marathon count not updated",
           });
         }
 
         res.send({
           success: true,
-          message: "Registration deleted successfully",
+          message: "Registration deleted successfully!",
         });
       } catch (error) {
         console.error(error);
         res.status(500).send({
           success: false,
-          message: "Failed to delete registration",
+          message: "Failed to delete registration!",
         });
       }
     });
@@ -327,7 +330,7 @@ async function run() {
       }
 
       if(req.user.email !== req.query.email) {
-        return res.status(403).send({message: 'forbidden access'})
+        return res.status(403).send({message: 'forbidden access!'})
       }
 
       try {
