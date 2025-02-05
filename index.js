@@ -153,7 +153,7 @@ async function run() {
         if (existingRegistration) {
           return res.status(400).send({
             success: false,
-            message: "You have already registered for this marathon.",
+            message: "You have already registered for this marathon!",
           });
         }
 
