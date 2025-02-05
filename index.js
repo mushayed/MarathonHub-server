@@ -172,7 +172,7 @@ async function run() {
 
         res.send({ success: true, result, updateResult });
       } catch (error) {
-        res.status(500).send({ success: false, error: "Failed to register" });
+        res.status(500).send({ success: false, error: "Failed to register!" });
       }
     });
 
