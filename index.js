@@ -24,9 +24,6 @@ app.use(cookieParser());
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
 
-  console.log(token);
-  
-
   if(!token) {
     return res.status(401).send({message: 'unauthorized access'});
   }
@@ -96,7 +93,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/marathons", verifyToken, async (req, res) => {
+    app.get("/marathons", async (req, res) => {
       const sort = req.query.sort || "asc";
       const sortOrder = sort === "desc" ? -1 : 1;
 
